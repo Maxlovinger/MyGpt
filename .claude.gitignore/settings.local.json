@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import torch; print\\(torch.__version__\\)\")",
+      "Bash(conda info:*)",
+      "Bash(/Users/max_lovinger/anaconda3/bin/python --version)",
+      "Bash(/Users/max_lovinger/anaconda3/bin/pip show:*)",
+      "Bash(/Users/max_lovinger/anaconda3/bin/python3 -c \"import torch; print\\(torch.__version__\\)\")"
+    ]
+  }
+}
