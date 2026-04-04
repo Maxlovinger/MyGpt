@@ -83,15 +83,13 @@ def train(model, train_loader, val_loader, optimizer, device):
 if __name__ == "__main__":
     print(f"Using device: {DEVICE}")
 
-    # 1. Stream a sample of Gutenberg books to train the tokenizer on real vocabulary
+    # 1. Stream one Gutenberg book and truncate to 100 KB — enough for BPE to learn
+    #    the Victorian vocabulary without the O(merges × text_len) cost blowing up.
     print("Loading tokenizer sample from Gutenberg (streaming)...")
     from datasets import load_dataset
-    tok_sample_texts = []
-    for i, ex in enumerate(load_dataset("manu/project_gutenberg", split="en", streaming=True)):
-        if i >= 20:
-            break
-        tok_sample_texts.append(ex["text"])
-    tok_sample_text = "\n".join(tok_sample_texts)
+    for ex in load_dataset("manu/project_gutenberg", split="en", streaming=True):
+        tok_sample_text = ex["text"][:100_000]
+        break
 
     tok = BPETokenizer(vocab_size=VOCAB_SIZE)
     tok.train(tok_sample_text)
