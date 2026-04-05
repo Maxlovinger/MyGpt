@@ -6,20 +6,20 @@ from Dataset import build_dataset, get_dataloader
 from TokenizationAndBPE import BPETokenizer
 
 # --- Hyperparameters (training on Mac MPS, inference on Pi CPU) ---
-VOCAB_SIZE   = 4000
-EMBED_DIM    = 128
+VOCAB_SIZE   = 8000   # richer vocabulary for more expressive text
+EMBED_DIM    = 192    # bigger representations
 N_HEADS      = 4
-N_LAYERS     = 4
-MAX_SEQ_LEN  = 128
+N_LAYERS     = 6      # deeper = more capable
+MAX_SEQ_LEN  = 256    # longer context window
 DROPOUT      = 0.1
-BATCH_SIZE   = 16     # bigger batch now that we have MPS
-CONTEXT_LEN  = 128
+BATCH_SIZE   = 4      # small batch for Pi RAM
+CONTEXT_LEN  = 256
 LR           = 3e-4
 WEIGHT_DECAY = 0.1
 GRAD_CLIP    = 1.0
-MAX_STEPS    = 5000
-EVAL_EVERY   = 200
-DEVICE       = "mps" if torch.backends.mps.is_available() else "cpu"
+MAX_STEPS    = 10000  # ~8-12 hours on Pi overnight
+EVAL_EVERY   = 500
+DEVICE       = "cpu"
 
 def get_lr(step: int, warmup_steps: int = 200, max_steps: int = MAX_STEPS) -> float:
     # Linear warmup then cosine decay
@@ -83,19 +83,21 @@ def train(model, train_loader, val_loader, optimizer, device):
 if __name__ == "__main__":
     print(f"Using device: {DEVICE}")
 
-    # 1. Stream one Gutenberg book and truncate to 100 KB — enough for BPE to learn
-    #    the Victorian vocabulary without the O(merges × text_len) cost blowing up.
+    # 1. Train tokenizer on a sample of 5 books — enough to learn a solid vocabulary
     print("Loading tokenizer sample from Gutenberg (streaming)...")
     from datasets import load_dataset
-    for ex in load_dataset("manu/project_gutenberg", split="en", streaming=True):
-        tok_sample_text = ex["text"][:100_000]
-        break
+    tok_sample_texts = []
+    for i, ex in enumerate(load_dataset("manu/project_gutenberg", split="en", streaming=True)):
+        tok_sample_texts.append(ex["text"][:50_000])
+        if i >= 4:
+            break
+    tok_sample_text = "\n".join(tok_sample_texts)
 
     tok = BPETokenizer(vocab_size=VOCAB_SIZE)
     tok.train(tok_sample_text)
     print("Tokenizer trained.")
 
-    # 2. Build dataset — stream 300 Gutenberg books, formal Victorian/Edwardian prose
+    # 2. Build dataset — 20 books is plenty for this model size, keeps encoding fast
     print("Loading dataset (streaming)...")
     dataset = build_dataset(
         tokenizer=tok,
@@ -103,7 +105,7 @@ if __name__ == "__main__":
         hf_dataset_name="manu/project_gutenberg",
         hf_split="en",
         hf_text_column="text",
-        hf_max_examples=10,
+        hf_max_examples=20,
     )
     print(f"Dataset size: {len(dataset):,} windows")
 

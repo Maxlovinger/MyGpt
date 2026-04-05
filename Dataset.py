@@ -31,7 +31,8 @@ def load_personal_data(directory: str) -> str:
     return "\n<|endoftext|>\n".join(texts)
 
 
-def load_hf_dataset(dataset_name: str, split: str = "train", text_column: str = "text", max_examples: int = None) -> str:
+def load_hf_dataset_texts(dataset_name: str, split: str = "train", text_column: str = "text", max_examples: int = None) -> list[str]:
+    # Returns a list of individual texts rather than one big string — so we can encode each separately
     from datasets import load_dataset
     if max_examples is not None:
         ds = load_dataset(dataset_name, split=split, streaming=True)
@@ -39,11 +40,11 @@ def load_hf_dataset(dataset_name: str, split: str = "train", text_column: str = 
         for i, example in enumerate(ds):
             if i >= max_examples:
                 break
-            texts.append(example[text_column])
+            texts.append(example[text_column][:200_000])
     else:
         ds = load_dataset(dataset_name, split=split)
         texts = list(ds[text_column])
-    return "\n<|endoftext|>\n".join(texts)
+    return texts
 
 
 def build_dataset(
@@ -54,26 +55,24 @@ def build_dataset(
     hf_split: str = "train",
     hf_text_column: str = "text",
     hf_max_examples: int = None,
-    personal_weight: float = 0.25,
 ) -> TextDataset:
 
-    texts = []
+    all_texts = []
 
     if hf_dataset_name:
-        hf_text = load_hf_dataset(hf_dataset_name, split=hf_split, text_column=hf_text_column, max_examples=hf_max_examples)
-        texts.append(hf_text)
+        all_texts += load_hf_dataset_texts(hf_dataset_name, split=hf_split, text_column=hf_text_column, max_examples=hf_max_examples)
 
     if personal_dir:
         personal_text = load_personal_data(personal_dir)
-        # Repeat personal data to hit the target weight ratio
-        hf_len      = len(texts[0]) if texts else 1
-        personal_len = len(personal_text)
-        repeats     = max(1, int((personal_weight / (1 - personal_weight)) * (hf_len / personal_len)))
-        texts.append(personal_text * repeats)
+        all_texts.append(personal_text)
 
-    full_text = "\n<|endoftext|>\n".join(texts)
-    print(f"Encoding {len(full_text):,} characters — this takes a few minutes...", flush=True)
-    token_ids = tokenizer.encode(full_text)
+    # Encode each text separately — much faster than one giant string
+    print(f"Encoding {len(all_texts)} texts...", flush=True)
+    token_ids = []
+    for i, text in enumerate(all_texts):
+        print(f"  [{i+1}/{len(all_texts)}] {len(text):,} chars", flush=True)
+        token_ids += tokenizer.encode(text)
+
     return TextDataset(token_ids, context_length)
 
 
