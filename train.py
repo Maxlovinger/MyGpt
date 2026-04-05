@@ -5,21 +5,21 @@ from GPT import GPT
 from Dataset import build_dataset, get_dataloader
 from TokenizationAndBPE import BPETokenizer
 
-# --- Hyperparameters (tuned for Raspberry Pi 5 CPU training) ---
-VOCAB_SIZE   = 4000   # smaller vocab = smaller embedding table
-EMBED_DIM    = 128    # was 192 — halved to cut params and speed up each step
-N_HEADS      = 4      # head_dim = 32, still clean
-N_LAYERS     = 4      # was 6 — fewer layers = faster per step
-MAX_SEQ_LEN  = 128    # was 256 — shorter context = less memory and faster attention
+# --- Hyperparameters (training on Mac MPS, inference on Pi CPU) ---
+VOCAB_SIZE   = 4000
+EMBED_DIM    = 128
+N_HEADS      = 4
+N_LAYERS     = 4
+MAX_SEQ_LEN  = 128
 DROPOUT      = 0.1
-BATCH_SIZE   = 4      # small batch for limited RAM
+BATCH_SIZE   = 16     # bigger batch now that we have MPS
 CONTEXT_LEN  = 128
 LR           = 3e-4
 WEIGHT_DECAY = 0.1
 GRAD_CLIP    = 1.0
-MAX_STEPS    = 5000   # ~2-4 hours on Pi 5, run overnight
+MAX_STEPS    = 5000
 EVAL_EVERY   = 200
-DEVICE       = "cpu"  # Pi 5 has no GPU
+DEVICE       = "mps" if torch.backends.mps.is_available() else "cpu"
 
 def get_lr(step: int, warmup_steps: int = 200, max_steps: int = MAX_STEPS) -> float:
     # Linear warmup then cosine decay
