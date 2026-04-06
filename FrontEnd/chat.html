@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Darwin-1 — Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=DM+Mono:wght@300;400&family=Pinyon+Script&display=swap" rel="stylesheet" />
+  <style>
+    @font-face {
+      font-family: "BTCGods";
+      src: url("fonts/BTCGods.woff") format("woff"),
+           url("fonts/BTCGods.otf")  format("opentype");
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --cream: #EFE4D2;
+      --blue:  #254D70;
+      --navy:  #131D4F;
+      --rust:  #954C2E;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--cream);
+      color: var(--navy);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* grain */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 100;
+      opacity: 0.45;
+    }
+
+    /* ── HEADER ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 40px;
+      border-bottom: 1px solid rgba(37,77,112,0.15);
+      flex-shrink: 0;
+      animation: fadeDown 0.8s ease both;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+
+    .logo {
+      font-family: "BTCGods", sans-serif;
+      font-size: 22px;
+      letter-spacing: 0.06em;
+      color: var(--navy);
+    }
+
+    .logo-tag {
+      font-family: "DM Mono", monospace;
+      font-size: 9px;
+      letter-spacing: 0.25em;
+      color: var(--rust);
+      border: 1px solid var(--rust);
+      padding: 2px 8px 2px 10px;
+      opacity: 0.8;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .back-btn {
+      font-family: "DM Mono", monospace;
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      color: var(--blue);
+      text-decoration: none;
+      text-transform: uppercase;
+      opacity: 0.6;
+      transition: opacity 0.3s;
+      cursor: pointer;
+    }
+    .back-btn:hover { opacity: 1; }
+
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #6db87a;
+      animation: pulse 2.5s ease-in-out infinite;
+    }
+
+    /* ── CHAT AREA ── */
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+      scroll-behavior: smooth;
+    }
+
+    #chat::-webkit-scrollbar { width: 4px; }
+    #chat::-webkit-scrollbar-track { background: transparent; }
+    #chat::-webkit-scrollbar-thumb { background: rgba(37,77,112,0.2); border-radius: 2px; }
+
+    /* empty state */
+    .empty {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      text-align: center;
+      animation: fadeUp 1s ease 0.4s both;
+    }
+
+    .empty-script {
+      font-family: "Pinyon Script", cursive;
+      font-size: 42px;
+      color: var(--rust);
+      opacity: 0.7;
+    }
+
+    .empty-sub {
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      font-size: 15px;
+      color: var(--blue);
+      opacity: 0.6;
+      letter-spacing: 0.05em;
+    }
+
+    .empty-hint {
+      font-family: "DM Mono", monospace;
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      color: var(--navy);
+      opacity: 0.3;
+      margin-top: 6px;
+      text-transform: uppercase;
+    }
+
+    /* ── MESSAGES ── */
+    .message {
+      display: flex;
+      gap: 16px;
+      max-width: 760px;
+      width: 100%;
+      margin: 0 auto;
+      animation: fadeUp 0.5s ease both;
+    }
+
+    .message.user { flex-direction: row-reverse; }
+
+    .avatar {
+      width: 34px;
+      height: 34px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+    }
+
+    .message.user  .avatar { color: var(--rust); }
+    .message.bot   .avatar {
+      font-family: "BTCGods", sans-serif;
+      font-size: 13px;
+      color: var(--navy);
+      letter-spacing: 0.05em;
+    }
+
+    .msg-content { flex: 1; }
+
+    .msg-label {
+      font-family: "DM Mono", monospace;
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      opacity: 0.4;
+    }
+
+    .message.user  .msg-label { text-align: right; color: var(--rust); }
+    .message.bot   .msg-label { color: var(--blue); }
+
+    .bubble {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 17px;
+      line-height: 1.75;
+      padding: 16px 22px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border: 1px solid transparent;
+    }
+
+    .message.user .bubble {
+      background: var(--navy);
+      color: var(--cream);
+      border-color: var(--navy);
+      border-radius: 2px 2px 0 2px;
+    }
+
+    .message.bot .bubble {
+      background: rgba(37,77,112,0.06);
+      color: var(--navy);
+      border-color: rgba(37,77,112,0.12);
+      border-radius: 2px 2px 2px 0;
+    }
+
+    /* typing indicator */
+    .typing-dots {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      padding: 18px 22px;
+      background: rgba(37,77,112,0.06);
+      border: 1px solid rgba(37,77,112,0.12);
+      width: fit-content;
+      border-radius: 2px;
+    }
+
+    .typing-dots span {
+      width: 5px; height: 5px;
+      background: var(--blue);
+      border-radius: 50%;
+      opacity: 0.4;
+      animation: blink 1.4s ease-in-out infinite;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    /* ── INPUT AREA ── */
+    #input-area {
+      padding: 20px 40px 28px;
+      border-top: 1px solid rgba(37,77,112,0.12);
+      flex-shrink: 0;
+      animation: fadeUp 0.8s ease 0.2s both;
+    }
+
+    .input-row {
+      max-width: 760px;
+      margin: 0 auto;
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+    }
+
+    .input-wrap {
+      flex: 1;
+      position: relative;
+      border-bottom: 1.5px solid rgba(37,77,112,0.3);
+      transition: border-color 0.3s;
+    }
+    .input-wrap:focus-within { border-color: var(--navy); }
+
+    textarea {
+      width: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      resize: none;
+      font-family: "Cormorant Garamond", serif;
+      font-size: 17px;
+      line-height: 1.5;
+      color: var(--navy);
+      padding: 8px 0;
+      max-height: 140px;
+      overflow-y: auto;
+    }
+
+    textarea::placeholder {
+      font-style: italic;
+      color: var(--blue);
+      opacity: 0.4;
+    }
+
+    .send-btn {
+      width: 40px; height: 40px;
+      background: var(--navy);
+      color: var(--cream);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: background 0.3s, transform 0.2s;
+      flex-shrink: 0;
+    }
+    .send-btn:hover   { background: var(--rust); }
+    .send-btn:active  { transform: scale(0.94); }
+    .send-btn:disabled { background: rgba(37,77,112,0.2); cursor: not-allowed; }
+
+    /* settings strip */
+    .settings {
+      max-width: 760px;
+      margin: 12px auto 0;
+      display: flex;
+      gap: 28px;
+      align-items: center;
+    }
+
+    .setting-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: "DM Mono", monospace;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      color: var(--blue);
+      opacity: 0.5;
+    }
+
+    .setting-item input[type=range] {
+      width: 70px;
+      accent-color: var(--rust);
+    }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0);    }
+    }
+
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to   { opacity: 1; transform: translateY(0);     }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1;   transform: scale(1);    }
+      50%       { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0.4; transform: scale(1);    }
+      40%            { opacity: 1;   transform: scale(1.25); }
+    }
+
+    body.entering { animation: fadeUp 0.7s ease both; }
+  </style>
+</head>
+<body class="entering">
+
+  <header>
+    <div class="header-left">
+      <span class="logo">DARWIN</span>
+      <span class="logo-tag">[ 1 ]</span>
+    </div>
+    <div class="header-right">
+      <div class="status-dot" title="Model online"></div>
+      <span class="back-btn" onclick="goHome()">← home</span>
+    </div>
+  </header>
+
+  <div id="chat">
+    <div class="empty" id="empty">
+      <div class="empty-script">speak freely</div>
+      <div class="empty-sub">( Darwin is listening )</div>
+      <div class="empty-hint">press enter to send</div>
+    </div>
+  </div>
+
+  <div id="input-area">
+    <div class="input-row">
+      <div class="input-wrap">
+        <textarea id="prompt" rows="1" placeholder="say something..."></textarea>
+      </div>
+      <button class="send-btn" id="send">↑</button>
+    </div>
+    <div class="settings">
+      <div class="setting-item">
+        ( temp
+        <input type="range" id="temp" min="0.1" max="1.5" step="0.1" value="0.8" />
+        <span id="temp-val">0.8</span> )
+      </div>
+      <div class="setting-item">
+        ( tokens
+        <input type="range" id="tokens" min="50" max="300" step="10" value="150" />
+        <span id="tokens-val">150</span> )
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const chat      = document.getElementById("chat");
+    const empty     = document.getElementById("empty");
+    const promptEl  = document.getElementById("prompt");
+    const sendBtn   = document.getElementById("send");
+    const tempEl    = document.getElementById("temp");
+    const tempVal   = document.getElementById("temp-val");
+    const tokensEl  = document.getElementById("tokens");
+    const tokensVal = document.getElementById("tokens-val");
+
+    tempEl.addEventListener("input",   () => tempVal.textContent   = parseFloat(tempEl.value).toFixed(1));
+    tokensEl.addEventListener("input", () => tokensVal.textContent = tokensEl.value);
+
+    promptEl.addEventListener("input", () => {
+      promptEl.style.height = "auto";
+      promptEl.style.height = Math.min(promptEl.scrollHeight, 140) + "px";
+    });
+
+    promptEl.addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+    });
+
+    sendBtn.addEventListener("click", send);
+
+    function goHome() {
+      document.body.style.animation = "none";
+      document.body.style.opacity   = "0";
+      document.body.style.transform = "translateY(12px)";
+      document.body.style.transition = "opacity 0.5s ease, transform 0.5s ease";
+      setTimeout(() => { window.location.href = "index.html"; }, 480);
+    }
+
+    function addMessage(text, role) {
+      if (empty) empty.style.display = "none";
+
+      const wrap = document.createElement("div");
+      wrap.className = `message ${role}`;
+
+      const avatar = document.createElement("div");
+      avatar.className = "avatar";
+      avatar.textContent = role === "user" ? "( you )" : "D1";
+
+      const content = document.createElement("div");
+      content.className = "msg-content";
+
+      const label = document.createElement("div");
+      label.className = "msg-label";
+      label.textContent = role === "user" ? "you" : "darwin — 1";
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.textContent = text;
+
+      content.appendChild(label);
+      content.appendChild(bubble);
+      wrap.appendChild(avatar);
+      wrap.appendChild(content);
+      chat.appendChild(wrap);
+      chat.scrollTop = chat.scrollHeight;
+      return bubble;
+    }
+
+    function addTyping() {
+      if (empty) empty.style.display = "none";
+      const wrap = document.createElement("div");
+      wrap.className = "message bot";
+      wrap.id = "typing-wrap";
+
+      const avatar = document.createElement("div");
+      avatar.className = "avatar";
+      avatar.textContent = "D1";
+
+      const content = document.createElement("div");
+      content.className = "msg-content";
+
+      const label = document.createElement("div");
+      label.className = "msg-label";
+      label.textContent = "darwin — 1";
+
+      const dots = document.createElement("div");
+      dots.className = "typing-dots";
+      dots.innerHTML = "<span></span><span></span><span></span>";
+
+      content.appendChild(label);
+      content.appendChild(dots);
+      wrap.appendChild(avatar);
+      wrap.appendChild(content);
+      chat.appendChild(wrap);
+      chat.scrollTop = chat.scrollHeight;
+      return wrap;
+    }
+
+    async function send() {
+      const prompt = promptEl.value.trim();
+      if (!prompt || sendBtn.disabled) return;
+
+      promptEl.value = "";
+      promptEl.style.height = "auto";
+      sendBtn.disabled = true;
+
+      addMessage(prompt, "user");
+      const typingWrap = addTyping();
+
+      try {
+        const res = await fetch("/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt,
+            temperature: parseFloat(tempEl.value),
+            max_tokens:  parseInt(tokensEl.value),
+          }),
+        });
+
+        const data = await res.json();
+        typingWrap.remove();
+        addMessage(data.response || data.error || "( no response )", "bot");
+      } catch {
+        typingWrap.remove();
+        addMessage("( could not reach Darwin )", "bot");
+      }
+
+      sendBtn.disabled = false;
+      promptEl.focus();
+    }
+  </script>
+
+</body>
+</html>
