@@ -1,10 +1,14 @@
+import os
 import torch
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, send_from_directory
 from GPT import GPT
 from TokenizationAndBPE import BPETokenizer
 from generate import generate
 
-app = Flask(__name__)
+# Serve the built React app from frontend/dist
+DIST = os.path.join(os.path.dirname(__file__), "frontend", "dist")
+
+app = Flask(__name__, static_folder=DIST, static_url_path="")
 
 # Load model and tokenizer once at startup
 device = "cpu"
@@ -20,11 +24,6 @@ model = GPT(**cfg).to(device)
 model.load_state_dict(checkpoint["model"])
 model.eval()
 print("Ready.")
-
-
-@app.route("/")
-def index():
-    return render_template("index.html")
 
 
 @app.route("/generate", methods=["POST"])
@@ -46,9 +45,18 @@ def generate_text():
         device=device,
     )
 
-    # Return only the newly generated text, not the prompt
     new_text = output[len(prompt):]
     return jsonify({"response": new_text})
+
+
+# Catch-all: serve index.html for all non-API routes (React Router)
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def serve(path):
+    full = os.path.join(DIST, path)
+    if path and os.path.exists(full):
+        return send_from_directory(DIST, path)
+    return send_from_directory(DIST, "index.html")
 
 
 if __name__ == "__main__":
