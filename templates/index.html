@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyGPT</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #1a1a1a;
+            color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 16px 24px;
+            border-bottom: 1px solid #2e2e2e;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        header span {
+            font-size: 12px;
+            color: #666;
+            background: #2a2a2a;
+            padding: 3px 8px;
+            border-radius: 10px;
+        }
+
+        #chat {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .message {
+            max-width: 720px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+        }
+
+        .message.user { flex-direction: row-reverse; }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .message.user .avatar { background: #3b5bdb; }
+        .message.bot  .avatar { background: #2e2e2e; }
+
+        .bubble {
+            padding: 12px 16px;
+            border-radius: 12px;
+            line-height: 1.6;
+            font-size: 15px;
+            max-width: calc(100% - 46px);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .message.user .bubble {
+            background: #3b5bdb;
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.bot .bubble {
+            background: #2a2a2a;
+            color: #e0e0e0;
+            border-bottom-left-radius: 4px;
+        }
+
+        .typing .bubble { color: #666; font-style: italic; }
+
+        #input-area {
+            padding: 16px 24px 24px;
+            border-top: 1px solid #2e2e2e;
+        }
+
+        #input-row {
+            max-width: 720px;
+            margin: 0 auto;
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        #prompt {
+            flex: 1;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: #e0e0e0;
+            font-size: 15px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            max-height: 160px;
+            line-height: 1.5;
+        }
+
+        #prompt:focus { border-color: #3b5bdb; }
+
+        #send {
+            background: #3b5bdb;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            width: 42px;
+            height: 42px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background 0.15s;
+        }
+
+        #send:hover { background: #2f4cc4; }
+        #send:disabled { background: #333; cursor: not-allowed; }
+
+        .settings {
+            max-width: 720px;
+            margin: 8px auto 0;
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+            color: #666;
+            align-items: center;
+        }
+
+        .settings label { display: flex; align-items: center; gap: 6px; }
+        .settings input[type=range] { width: 80px; accent-color: #3b5bdb; }
+        .settings span { min-width: 28px; }
+
+        #empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            color: #444;
+        }
+
+        #empty-state h2 { font-size: 28px; color: #555; font-weight: 500; }
+        #empty-state p  { font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>MyGPT</h1>
+    <span>Raspberry Pi</span>
+</header>
+
+<div id="chat">
+    <div id="empty-state">
+        <h2>MyGPT</h2>
+        <p>A language model trained from scratch. Start typing below.</p>
+    </div>
+</div>
+
+<div id="input-area">
+    <div id="input-row">
+        <textarea id="prompt" rows="1" placeholder="Send a message..."></textarea>
+        <button id="send">&#8593;</button>
+    </div>
+    <div class="settings">
+        <label>
+            Temperature
+            <input type="range" id="temp" min="0.1" max="1.5" step="0.1" value="0.8">
+            <span id="temp-val">0.8</span>
+        </label>
+        <label>
+            Max tokens
+            <input type="range" id="tokens" min="50" max="300" step="10" value="150">
+            <span id="tokens-val">150</span>
+        </label>
+    </div>
+</div>
+
+<script>
+    const chat      = document.getElementById("chat");
+    const promptEl  = document.getElementById("prompt");
+    const sendBtn   = document.getElementById("send");
+    const tempEl    = document.getElementById("temp");
+    const tempVal   = document.getElementById("temp-val");
+    const tokensEl  = document.getElementById("tokens");
+    const tokensVal = document.getElementById("tokens-val");
+    const emptyState = document.getElementById("empty-state");
+
+    tempEl.addEventListener("input",   () => tempVal.textContent   = tempEl.value);
+    tokensEl.addEventListener("input", () => tokensVal.textContent = tokensEl.value);
+
+    // Auto-resize textarea
+    promptEl.addEventListener("input", () => {
+        promptEl.style.height = "auto";
+        promptEl.style.height = promptEl.scrollHeight + "px";
+    });
+
+    // Submit on Enter (Shift+Enter for newline)
+    promptEl.addEventListener("keydown", e => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    sendBtn.addEventListener("click", sendMessage);
+
+    function addMessage(text, role) {
+        if (emptyState) emptyState.style.display = "none";
+        const msg = document.createElement("div");
+        msg.className = `message ${role}`;
+        const emoji = role === "user" ? "U" : "G";
+        msg.innerHTML = `
+            <div class="avatar">${emoji}</div>
+            <div class="bubble">${text}</div>
+        `;
+        chat.appendChild(msg);
+        chat.scrollTop = chat.scrollHeight;
+        return msg;
+    }
+
+    async function sendMessage() {
+        const prompt = promptEl.value.trim();
+        if (!prompt) return;
+
+        promptEl.value = "";
+        promptEl.style.height = "auto";
+        sendBtn.disabled = true;
+
+        addMessage(prompt, "user");
+        const typingMsg = addMessage("Generating...", "bot typing");
+
+        try {
+            const res = await fetch("/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    prompt:      prompt,
+                    temperature: parseFloat(tempEl.value),
+                    max_tokens:  parseInt(tokensEl.value),
+                }),
+            });
+
+            const data = await res.json();
+            typingMsg.classList.remove("typing");
+            typingMsg.querySelector(".bubble").textContent = data.response || data.error;
+        } catch (err) {
+            typingMsg.querySelector(".bubble").textContent = "Error reaching the model.";
+        }
+
+        sendBtn.disabled = false;
+        promptEl.focus();
+    }
+</script>
+
+</body>
+</html>
