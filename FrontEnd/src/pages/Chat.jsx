@@ -148,13 +148,13 @@ export default function Chat() {
   const [loading,   setLoading]   = useState(false)
   const [exchanges, setExchanges] = useState(0)
 
-  // Ink curtain entrance
+  // Ink curtain entrance — read sessionStorage exactly once, lazily
   const [curtainDone, setCurtainDone] = useState(false)
-  const inkEnter = useRef(() => {
+  const [inkEnter] = useState(() => {
     const v = sessionStorage.getItem('ink-enter')
     if (v) sessionStorage.removeItem('ink-enter')
     return !!v
-  })()
+  })
 
   // Auto-scroll
   useEffect(() => {

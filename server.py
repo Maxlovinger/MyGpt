@@ -5,10 +5,9 @@ from GPT import GPT
 from TokenizationAndBPE import BPETokenizer
 from generate import generate
 
-# Serve the built React app from frontend/dist
-DIST = os.path.join(os.path.dirname(__file__), "frontend", "dist")
+FRONTEND = os.path.join(os.path.dirname(__file__), "FrontEnd")
 
-app = Flask(__name__, static_folder=DIST, static_url_path="")
+app = Flask(__name__, static_folder=FRONTEND, static_url_path="")
 
 # Load model and tokenizer once at startup
 device = "cpu"
@@ -49,14 +48,17 @@ def generate_text():
     return jsonify({"response": new_text})
 
 
-# Catch-all: serve index.html for all non-API routes (React Router)
-@app.route("/", defaults={"path": ""})
+@app.route("/")
+def index():
+    return send_from_directory(FRONTEND, "index.html")
+
+@app.route("/chat")
+def chat():
+    return send_from_directory(FRONTEND, "chat.html")
+
 @app.route("/<path:path>")
-def serve(path):
-    full = os.path.join(DIST, path)
-    if path and os.path.exists(full):
-        return send_from_directory(DIST, path)
-    return send_from_directory(DIST, "index.html")
+def static_files(path):
+    return send_from_directory(FRONTEND, path)
 
 
 if __name__ == "__main__":
